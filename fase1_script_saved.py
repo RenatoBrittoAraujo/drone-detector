@@ -15,6 +15,12 @@ from cv_bridge import CvBridge
 import cv2
 from time import sleep
 
+# from sensor_msgs.msg import Image  # Image is the message type
+# from cv_bridge import CvBridge  # Package to convert between ROS and OpenCV Images
+# from ultralytics import YOLO  # YOLO library
+# import cv2  # OpenCV library
+# import os
+
 
 class OffboardControl(Node):
     """Node for controlling a vehicle in offboard mode."""
@@ -55,10 +61,10 @@ class OffboardControl(Node):
             qos_profile,
         )
 
-        # # Subscriber for camera image
-        # self.camera_subscription = self.create_subscription(
-        #     Image, "camera", self.camera_callback, 10
-        # )
+        # Subscriber for camera image
+        self.camera_subscription = self.create_subscription(
+            Image, "/x500_mono_cam/camera/image_raw", self.camera_callback, 10
+        )
 
         self.bridge = CvBridge()
 
@@ -68,19 +74,31 @@ class OffboardControl(Node):
         self.vehicle_status = VehicleStatus()
         self.takeoff_height = -3.5
         self.setpoints = []
+        # for i in range(0, 8):
+        #     if i % 2 == 1:
+        #         for j in range(7, -1, -1):
+        #             self.setpoints.append((-i + 0.5, j + 0.5, self.takeoff_height))
+        #     else:
+        #         for j in range(0, 8):
+        #             self.setpoints.append((-i + 0.5, j + 0.5, self.takeoff_height))
 
         for i in range(0, 8):
             if i % 2 == 1:
                 for j in range(7, -1, -1):
-                    self.setpoints.append(
-                        (-i + 0.00001, j + 0.00001, self.takeoff_height)
-                    )
+                    self.setpoints.append((-i, j, self.takeoff_height))
+                self.get_logger().info(f"ADD SETPOINT: " + repr(self.setpoints[-1]))
             else:
                 for j in range(0, 8):
-                    self.setpoints.append(
-                        (-i + 0.00001, j + 0.00001, self.takeoff_height)
-                    )
+                    self.setpoints.append((-i, j, self.takeoff_height))
+                self.get_logger().info(f"ADD SETPOINT: " + repr(self.setpoints[-1]))
 
+        # self.setpoints = [
+        #     (0.0, 0.0, self.takeoff_height),  # Start at the origin
+        #     (-4.0, 0.0, self.takeoff_height),  # Move to (4, 0)
+        #     (-4.0, 4.0, self.takeoff_height),  # Move to (4, 4)
+        #     (0.0, -4.0, self.takeoff_height),  # Move to (0, 4)
+        #     (0.0, 0.0, self.takeoff_height),  # Return to the origin
+        # ]
         self.current_setpoint_index = 0
 
         # Create a timer to publish control commands
@@ -93,10 +111,10 @@ class OffboardControl(Node):
         # )
         # self.subscription  # prevent unused variable warning
 
-        self.subscription = self.create_subscription(
-            Image, "posicoes", self.camera_posicoes_callback, 1
-        )
-        self.subscription  # prevent unused variable warning
+        # # Used to convert between ROS and OpenCV images
+        # self.br = CvBridge()
+
+        # self.get_logger().info(f"PATH:" + os.getcwd())
 
         # # atual: /edra/adcode/cbr_ws
         # # necessário /edra/adcode/cbr_ws/install/fase_1/lib/fase_1/fase1_script
@@ -121,46 +139,46 @@ class OffboardControl(Node):
         """Callback function for vehicle_status topic subscriber."""
         self.vehicle_status = vehicle_status
 
-    def camera_posicoes_callback(self, posicoes):
-        #     """Callback function for camera image topic subscriber."""
-        #     self.get_logger().info("Receiving video frame")
-        #     # return
+    def camera_callback(self, msg):
+        """Callback function for camera image topic subscriber."""
+        self.get_logger().info("Receiving video frame")
+        return
 
-        #     # Convert ROS Image message to OpenCV image
-        #     current_frame = self.br.imgmsg_to_cv2(msg, desired_encoding="bgr8")
+        # Convert ROS Image message to OpenCV image
+        current_frame = self.br.imgmsg_to_cv2(msg, desired_encoding="bgr8")
 
-        #     # Resize the frame
-        #     resized_frame = cv2.resize(
-        #         current_frame, (880, 680)
-        #     )  # Adjust the size as needed
+        # Resize the frame
+        resized_frame = cv2.resize(
+            current_frame, (880, 680)
+        )  # Adjust the size as needed
 
-        #     # Run YOLO model on the frame
-        #     results = self.model(resized_frame, conf=0.9)
+        # Run YOLO model on the frame
+        results = self.model(resized_frame, conf=0.9)
 
-        #     # # Visualize the results on the frame
-        #     # annotated_frame = results[0].plot()  # YOLOv8 automatically annotates the frame
+        # # Visualize the results on the frame
+        # annotated_frame = results[0].plot()  # YOLOv8 automatically annotates the frame
 
-        #     caixas = results[0].boxes[0].xyxy
-        #     self.get_logger().info(
-        #         str(len(results[0]))
-        #         + " boxes: ".join(
-        #             [repr(results[0].boxes[i].xyxy) for i in range(len(results[0].boxes))]
-        #         )
-        #     )
+        caixas = results[0].boxes[0].xyxy
+        self.get_logger().info(
+            str(len(results[0]))
+            + " boxes: ".join(
+                [repr(results[0].boxes[i].xyxy) for i in range(len(results[0].boxes))]
+            )
+        )
 
-        #     posicoes = [
-        #         (
-        #             int((caixa.xyxy[0][0] + caixa.xyxy[0][2]) / 2),
-        #             int((caixa.xyxy[0][1] + caixa.xyxy[0][3]) / 2),
-        #         )
-        #         for caixa in results[0].boxes
-        #     ]
-        #     self.get_logger().info(
-        #         "posicoes: ".join([repr(posicao) for posicao in posicoes])
-        #     )
+        posicoes = [
+            (
+                int((caixa.xyxy[0][0] + caixa.xyxy[0][2]) / 2),
+                int((caixa.xyxy[0][1] + caixa.xyxy[0][3]) / 2),
+            )
+            for caixa in results[0].boxes
+        ]
+        self.get_logger().info(
+            "posicoes: ".join([repr(posicao) for posicao in posicoes])
+        )
+        self.get_logger().info(str(posicoes))
 
         self.get_logger().info("SET POSICOES ==================")
-        self.get_logger().info(str(posicoes))
         self.posicoes = posicoes
 
     def arm(self):
@@ -249,39 +267,39 @@ class OffboardControl(Node):
                 ):
                     self.current_setpoint_index += 1
                     self.get_logger().info(f"Moved to setpoint: {sp}")
-                    self.get_logger().info("CHEGOU NO SETPOINT")
-                    current_time_delta = (
-                        self.get_clock().now().nanoseconds - self.last_timestamp
-                    )
-                    timer = 5000000000
+                    # self.get_logger().info("CHEGOU NO SETPOINT")
+                    # current_time_delta = (
+                    #     self.get_clock().now().nanoseconds - self.last_timestamp
+                    # )
+                    # timer = 5000000000
 
-                    if current_time_delta < timer:
-                        self.get_logger().info(
-                            f"WAITING TIMER HIT 5{current_time_delta}"
-                        )
-                        return
+                    # if current_time_delta < timer:
+                    #     self.get_logger().info(
+                    #         f"WAITING TIMER HIT 5{current_time_delta}"
+                    #     )
+                    #     return
 
-                    if (
-                        current_time_delta >= timer
-                        and not self.detection_to_be_processed
-                    ):
-                        self.get_logger().info(f"SET TIMER 5")
-                        self.detection_to_be_processed = True
-                        self.last_timestamp = self.get_clock().now().nanoseconds
+                    # if (
+                    #     current_time_delta >= timer
+                    #     and not self.detection_to_be_processed
+                    # ):
+                    #     self.get_logger().info(f"SET TIMER 5")
+                    #     self.detection_to_be_processed = True
+                    #     self.last_timestamp = self.get_clock().now().nanoseconds
 
-                    if current_time_delta >= timer and self.detection_to_be_processed:
-                        self.get_logger().info(f"TIMER HAS HIT 5")
-                        self.detection_to_be_processed = False
-                        self.detect_caixa(
-                            (
-                                self.vehicle_local_position.x,
-                                self.vehicle_local_position.y,
-                                self.vehicle_local_position.z,
-                            ),
-                            self.posicoes,
-                        )
-                        self.current_setpoint_index += 1
-                        self.get_logger().info(f"Moved to setpoint: {sp}")
+                    # if current_time_delta >= timer and self.detection_to_be_processed:
+                    #     self.get_logger().info(f"TIMER HAS HIT 5")
+                    #     self.detection_to_be_processed = False
+                    #     self.detect_caixa(
+                    #         (
+                    #             self.vehicle_local_position.x,
+                    #             self.vehicle_local_position.y,
+                    #             self.vehicle_local_position.z,
+                    #         ),
+                    #         self.posicoes,
+                    #     )
+                    #     self.current_setpoint_index += 1
+                    #     self.get_logger().info(f"Moved to setpoint: {sp}")
                 sleep(0.1)
             else:
                 self.current_setpoint_index = 0
