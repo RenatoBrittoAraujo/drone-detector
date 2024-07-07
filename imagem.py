@@ -53,22 +53,22 @@ class ImageSubscriber(Node):
         # Visualize the results on the frame
         annotated_frame = results[0].plot()  # YOLOv8 automatically annotates the frame
 
-        caixas = results[0].boxes[0].xyxy
-        self.get_logger().info(
-            str(len(results[0]))
-            + " boxes: ".join(
-                [repr(results[0].boxes[i].xyxy) for i in range(len(results[0].boxes))]
-            )
-        )
+        # caixas = results[0].boxes[0].xyxy
+        # self.get_logger().info(
+        #     str(len(results[0]))
+        #     + " boxes: ".join(
+        #         [repr(results[0].boxes[i].xyxy) for i in range(len(results[0].boxes))]
+        #     )
+        # )
 
-        posicoes = [
-            (
-                int((caixa.xyxy[0][0] + caixa.xyxy[0][2]) / 2),
-                int((caixa.xyxy[0][1] + caixa.xyxy[0][3]) / 2),
-            )
-            for caixa in results[0].boxes
-        ]
-        self.get_logger().info(str(posicoes))
+        # posicoes = [
+        #     (
+        #         int((caixa.xyxy[0][0] + caixa.xyxy[0][2]) / 2),
+        #         int((caixa.xyxy[0][1] + caixa.xyxy[0][3]) / 2),
+        #     )
+        #     for caixa in results[0].boxes
+        # ]
+        # self.get_logger().info(str(posicoes))
 
         # Show Results
         cv2.imshow("Camera Feed", annotated_frame)
